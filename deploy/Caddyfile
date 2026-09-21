@@ -1,0 +1,19 @@
+:80 {
+	encode gzip zstd
+
+	handle /api/* {
+		reverse_proxy backend:80
+	}
+
+	handle /up {
+		reverse_proxy backend:80
+	}
+
+	handle /rails/active_storage/* {
+		reverse_proxy backend:80
+	}
+
+	handle {
+		reverse_proxy frontend:80
+	}
+}

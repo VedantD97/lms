@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="${1:-$ROOT/.env.production}"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Missing $ENV_FILE"
+  echo "Copy .env.production.example to .env.production and set secrets first."
+  exit 1
+fi
+
+echo "Starting production stack with $ENV_FILE"
+cd "$ROOT"
+
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE=(docker-compose)
+else
+  echo "Docker Compose not available."
+  echo "Use native deployment instead: bin/prod-native"
+  exit 1
+fi
+
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker daemon is not accessible for the current user."
+  echo "Add your user to the docker group, or run: bin/prod-native"
+  exit 1
+fi
+
+"${COMPOSE[@]}" -f docker-compose.prod.yml --env-file "$ENV_FILE" up --build -d
+
+echo
+echo "Production stack is starting."
+echo "  App URL: http://localhost:${PROXY_PORT:-8080} (override with PROXY_PORT in env file)"
+echo "  Logs:    docker compose -f docker-compose.prod.yml --env-file $ENV_FILE logs -f"
+echo "  Stop:    docker compose -f docker-compose.prod.yml --env-file $ENV_FILE down"

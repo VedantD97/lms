@@ -1,0 +1,74 @@
+# Kamal 2 deployment for the Rails API.
+# Replace placeholder values before running kamal setup.
+# See docs/DEPLOYMENT.md
+
+service: lms-api
+image: your-registry/lms-api
+
+servers:
+  web:
+    hosts:
+      - YOUR_SERVER_IP
+    options:
+      memory: 512m
+
+proxy:
+  ssl: true
+  host: lms.example.com
+  healthcheck:
+    path: /api/v1/health
+    interval: 3
+    timeout: 5
+
+registry:
+  server: ghcr.io
+  username: your-username
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64
+
+env:
+  clear:
+    RAILS_ENV: production
+    RAILS_LOG_TO_STDOUT: "true"
+    SOLID_QUEUE_IN_PUMA: "true"
+    ACTIVE_STORAGE_SERVICE: amazon
+    APP_HOST: lms.example.com
+    FRONTEND_URL: https://lms.example.com
+    DATABASE_HOST: lms-api-db
+    DATABASE_USERNAME: lms
+  secret:
+    - RAILS_MASTER_KEY
+    - JWT_SECRET
+    - DATABASE_PASSWORD
+    - POSTGRES_PASSWORD
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_BUCKET
+
+volumes:
+  - "lms_storage:/rails/storage"
+
+accessories:
+  db:
+    image: postgres:16
+    host: YOUR_SERVER_IP
+    port: "127.0.0.1:5432:5432"
+    env:
+      clear:
+        POSTGRES_USER: lms
+        POSTGRES_DB: lms_production
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - lms_postgres_data:/var/lib/postgresql/data
+    files:
+      - deploy/postgres/kamal-init-dbs.sql:/docker-entrypoint-initdb.d/10-init-dbs.sql
+
+aliases:
+  console: app exec --interactive --reuse "bin/rails console"
+  shell: app exec --interactive --reuse "bash"
+  logs: app logs -f
+  dbc: app exec --interactive --reuse "bin/rails dbconsole"

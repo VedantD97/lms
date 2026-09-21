@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="${1:-$ROOT/.env.production}"
+PID_DIR="$ROOT/tmp/pids"
+BACKEND_PID="$PID_DIR/backend.pid"
+FRONTEND_PID="$PID_DIR/frontend.pid"
+PROXY_PORT="${PROXY_PORT:-8080}"
+BACKEND_PORT="${BACKEND_PORT:-3000}"
+
+mkdir -p "$PID_DIR"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Missing $ENV_FILE"
+  echo "Run: cp .env.production.example .env.production"
+  echo "Then set RAILS_MASTER_KEY, JWT_SECRET, and POSTGRES_PASSWORD."
+  exit 1
+fi
+
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+set +a
+
+export RAILS_ENV=production
+export DATABASE_USERNAME="${DATABASE_USERNAME:-${USER}}"
+export DATABASE_PASSWORD="${DATABASE_PASSWORD:-}"
+if [[ -n "${DATABASE_HOST:-}" ]]; then
+  export DATABASE_HOST
+fi
+export FORCE_SSL="${FORCE_SSL:-false}"
+export SOLID_QUEUE_IN_PUMA="${SOLID_QUEUE_IN_PUMA:-true}"
+export ACTIVE_STORAGE_SERVICE="${ACTIVE_STORAGE_SERVICE:-local}"
+export FRONTEND_URL="${FRONTEND_URL:-http://localhost:${PROXY_PORT}}"
+export APP_HOST="${APP_HOST:-localhost}"
+
+stop_if_running() {
+  local pid_file="$1"
+  local name="$2"
+  if [[ -f "$pid_file" ]]; then
+    local pid
+    pid="$(cat "$pid_file")"
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "Stopping existing $name (pid $pid)..."
+      kill "$pid" 2>/dev/null || true
+      sleep 1
+    fi
+    rm -f "$pid_file"
+  fi
+}
+
+stop_if_running "$BACKEND_PID" "backend"
+stop_if_running "$FRONTEND_PID" "frontend"
+
+echo "== Preparing production databases =="
+cd "$ROOT/backend"
+bundle check >/dev/null 2>&1 || bundle install
+bin/rails db:prepare
+
+echo "== Seeding demo data =="
+SEED_DUMMY_DATA=1 bin/rails db:seed
+
+echo "== Building frontend =="
+cd "$ROOT/frontend"
+npm ci
+VITE_API_URL=/api/v1 npm run build
+
+echo "== Starting backend on port $BACKEND_PORT =="
+cd "$ROOT/backend"
+BACKEND_ENV=(
+  RAILS_ENV=production
+  RAILS_MASTER_KEY="$RAILS_MASTER_KEY"
+  JWT_SECRET="$JWT_SECRET"
+  DATABASE_USERNAME="$DATABASE_USERNAME"
+  DATABASE_PASSWORD="$DATABASE_PASSWORD"
+  FRONTEND_URL="$FRONTEND_URL"
+  APP_HOST="$APP_HOST"
+  FORCE_SSL="$FORCE_SSL"
+  SOLID_QUEUE_IN_PUMA="$SOLID_QUEUE_IN_PUMA"
+  ACTIVE_STORAGE_SERVICE="$ACTIVE_STORAGE_SERVICE"
+)
+if [[ -n "${DATABASE_HOST:-}" ]]; then
+  BACKEND_ENV+=(DATABASE_HOST="$DATABASE_HOST")
+fi
+nohup env "${BACKEND_ENV[@]}" \
+  bundle exec rails server -b 127.0.0.1 -p "$BACKEND_PORT" \
+  > "$ROOT/tmp/backend.log" 2>&1 &
+echo $! > "$BACKEND_PID"
+
+echo "== Starting frontend preview on port $PROXY_PORT =="
+cd "$ROOT/frontend"
+nohup npm run preview -- --host 127.0.0.1 --port "$PROXY_PORT" \
+  > "$ROOT/tmp/frontend.log" 2>&1 &
+echo $! > "$FRONTEND_PID"
+
+sleep 3
+
+if curl -sf "http://127.0.0.1:${BACKEND_PORT}/api/v1/health" >/dev/null; then
+  echo "Backend health check: OK"
+else
+  echo "Backend health check failed — see $ROOT/tmp/backend.log"
+  tail -20 "$ROOT/tmp/backend.log" || true
+  exit 1
+fi
+
+echo
+echo "Production stack is running (native mode)."
+echo "  App URL:  http://localhost:${PROXY_PORT}"
+echo "  API URL:  http://localhost:${BACKEND_PORT}/api/v1"
+echo "  Login:    admin@example.com / password123"
+echo
+echo "Logs:"
+echo "  tail -f $ROOT/tmp/backend.log"
+echo "  tail -f $ROOT/tmp/frontend.log"
+echo
+echo "Stop: bin/prod-down-native"

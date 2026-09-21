@@ -1,0 +1,271 @@
+erDiagram
+	direction TB
+	"ActiveStorage::Attachment" {
+		string name
+		string record_type
+	}
+	"ActiveStorage::Blob" {
+		integer byte_size
+		string checksum
+		string content_type
+		string filename
+		string key
+		text metadata
+		string service_name
+	}
+	"ActiveStorage::VariantRecord" {
+		string variation_digest
+	}
+	Announcement {
+		integer audience
+		text body
+		datetime published_at
+		string title
+		uuid uuid
+	}
+	Assignment {
+		boolean allow_late
+		boolean allow_resubmit
+		text description
+		datetime due_at
+		decimal max_points
+		decimal passing_score
+		boolean required_for_completion
+		integer status
+		string title
+		uuid uuid
+	}
+	AssignmentSubmission {
+		text body
+		boolean late
+		integer status
+		datetime submitted_at
+		uuid uuid
+	}
+	AuditLog {
+		string action
+		integer auditable_id
+		string auditable_type
+		string ip_address
+		jsonb metadata
+		uuid uuid
+	}
+	Category {
+		text description
+		string name
+		integer position
+		string slug
+		uuid uuid
+	}
+	Certificate {
+		string certificate_number
+		datetime issued_at
+		datetime revoked_at
+		uuid uuid
+	}
+	Course {
+		text description
+		integer duration_minutes
+		integer level
+		datetime published_at
+		string short_description
+		string slug
+		integer status
+		string title
+		uuid uuid
+	}
+	CourseCategory {
+	}
+	CourseInstructor {
+		integer role
+	}
+	CourseModule {
+		text description
+		integer position
+		integer status
+		string title
+		uuid uuid
+	}
+	Enrollment {
+		datetime completed_at
+		datetime enrolled_at
+		decimal progress_percent
+		integer status
+		uuid uuid
+	}
+	Grade {
+		text feedback
+		string gradable_type
+		datetime graded_at
+		boolean passed
+		decimal percentage
+		decimal points
+		uuid uuid
+	}
+	Lesson {
+		text content
+		integer content_type
+		integer duration_seconds
+		boolean is_preview
+		integer position
+		boolean required_for_completion
+		integer status
+		string title
+		uuid uuid
+	}
+	LessonProgress {
+		datetime completed_at
+		integer last_position_seconds
+		decimal progress_percent
+		datetime started_at
+		integer status
+	}
+	LessonResource {
+		string external_url
+		jsonb metadata
+		integer position
+		integer resource_type
+		string title
+		uuid uuid
+	}
+	Notification {
+		integer notification_type
+		jsonb payload
+		datetime read_at
+		uuid uuid
+	}
+	PasswordResetToken {
+		datetime expires_at
+		string token_digest
+		datetime used_at
+	}
+	Question {
+		text body
+		text explanation
+		decimal points
+		integer position
+		integer question_type
+		uuid uuid
+	}
+	QuestionOption {
+		text body
+		boolean is_correct
+		integer position
+		uuid uuid
+	}
+	Quiz {
+		datetime available_from
+		datetime available_until
+		text description
+		integer max_attempts
+		decimal passing_score
+		boolean required_for_completion
+		integer show_correct_answers
+		boolean shuffle_answers
+		boolean shuffle_questions
+		integer status
+		integer time_limit_minutes
+		string title
+		uuid uuid
+	}
+	QuizAttempt {
+		integer attempt_number
+		datetime expires_at
+		decimal max_score
+		jsonb metadata
+		boolean passed
+		decimal percentage
+		jsonb question_order
+		decimal score
+		datetime started_at
+		integer status
+		datetime submitted_at
+		integer time_spent_seconds
+		uuid uuid
+	}
+	QuizResponse {
+		boolean is_correct
+		decimal points_awarded
+		jsonb selected_option_uuids
+		uuid uuid
+	}
+	RefreshToken {
+		datetime expires_at
+		string ip_address
+		datetime revoked_at
+		string token_digest
+		string user_agent
+	}
+	Review {
+		text body
+		integer rating
+		uuid uuid
+	}
+	Role {
+		text description
+		string name
+	}
+	User {
+		string email
+		datetime email_verified_at
+		string first_name
+		string last_name
+		datetime last_sign_in_at
+		string password_digest
+		integer status
+		uuid uuid
+	}
+	UserRole {
+	}
+	"ActiveStorage::Blob" ||--|o "ActiveStorage::Attachment" : ""
+	"ActiveStorage::VariantRecord" ||--|o "ActiveStorage::Attachment" : ""
+	Course ||--|o "ActiveStorage::Attachment" : ""
+	LessonResource ||--|o "ActiveStorage::Attachment" : ""
+	"ActiveStorage::Blob" ||--}o "ActiveStorage::Attachment" : ""
+	"ActiveStorage::Blob" ||--}o "ActiveStorage::VariantRecord" : ""
+	"ActiveStorage::Blob" o|..|o "ActiveStorage::Blob" : ""
+	User ||--}o Announcement : ""
+	Course ||--}o Announcement : ""
+	Course ||--}o Assignment : ""
+	Lesson o|--}o Assignment : ""
+	Assignment ||--}o AssignmentSubmission : ""
+	Enrollment ||--}o AssignmentSubmission : ""
+	AssignmentSubmission ||--|o Grade : ""
+	User ||--}o AuditLog : ""
+	Category o|--}o Category : ""
+	Category ||--}o CourseCategory : ""
+	Category o|..}o Course : ""
+	Enrollment ||--|o Certificate : ""
+	Certificate o|..|o User : ""
+	Certificate o|..|o Course : ""
+	Course ||--}o User : ""
+	Course ||--}o CourseCategory : ""
+	Course ||--}o CourseInstructor : ""
+	Course ||--}o CourseModule : ""
+	Course o|..}o Lesson : ""
+	Course ||--}o Quiz : ""
+	Course ||--}o Review : ""
+	Course ||--}o Enrollment : ""
+	Course o|..|o "ActiveStorage::Blob" : ""
+	User ||--}o CourseInstructor : ""
+	CourseModule ||--}o Lesson : ""
+	User ||--}o Enrollment : ""
+	Enrollment ||--}o LessonProgress : ""
+	Enrollment ||--}o QuizAttempt : ""
+	User ||--}o Grade : ""
+	Lesson ||--}o LessonResource : ""
+	Lesson ||--}o LessonProgress : ""
+	Lesson o|--}o Quiz : ""
+	LessonResource o|..|o "ActiveStorage::Blob" : ""
+	User ||--}o Notification : ""
+	User ||--}o PasswordResetToken : ""
+	Quiz ||--}o Question : ""
+	Question ||--}o QuestionOption : ""
+	Question ||--}o QuizResponse : ""
+	Quiz ||--}o QuizAttempt : ""
+	QuizAttempt ||--}o QuizResponse : ""
+	User ||--}o RefreshToken : ""
+	User ||--}o Review : ""
+	Role ||--}o UserRole : ""
+	Role o|..}o User : ""
+	User ||--}o UserRole : ""

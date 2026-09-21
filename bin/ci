@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+echo "== Backend: bundle install =="
+cd "$ROOT/backend"
+bundle check || bundle install
+
+echo "== Backend: RuboCop =="
+bin/rubocop -f simple
+
+echo "== Backend: Brakeman =="
+bin/brakeman --no-pager --quiet
+
+echo "== Backend: RSpec =="
+COVERAGE=true bundle exec rspec
+
+echo "== Frontend: npm ci =="
+cd "$ROOT/frontend"
+npm ci
+
+echo "== Frontend: lint =="
+npm run lint
+
+echo "== Frontend: tests with coverage =="
+npm run test:coverage
+
+echo "== Frontend: build =="
+npm run build
+
+echo
+echo "All CI checks passed."
