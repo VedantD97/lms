@@ -1,0 +1,65 @@
+# Render Blueprint for the LMS monorepo (free tier).
+#
+# Deploy: Render dashboard -> New + -> Blueprint -> connect this GitHub repo.
+# Render reads this file and creates all three resources below in one pass.
+#
+# A few env vars are intentionally left blank (sync: false) because Render
+# can't know their values until a resource has been created once (e.g. the
+# database's host/port, or the other service's public URL). See
+# docs/DEPLOYMENT.md ("Option C: Render") for the exact follow-up steps and
+# the order to do them in.
+
+databases:
+  - name: lms-postgres
+    plan: free
+    databaseName: lms_production
+    user: lms
+
+services:
+  - type: web
+    name: lms-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: RAILS_MASTER_KEY
+        sync: false # paste the contents of backend/config/master.key
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_HOST
+        sync: false # lms-postgres -> Info tab -> "Hostname"
+      - key: DATABASE_PORT
+        value: "5432"
+      - key: DATABASE_USERNAME
+        sync: false # lms-postgres -> Info tab -> "Username"
+      - key: DATABASE_PASSWORD
+        sync: false # lms-postgres -> Info tab -> "Password"
+      - key: APP_HOST
+        value: lms-backend.onrender.com # update if Render appends a suffix to the name
+      - key: FRONTEND_URL
+        sync: false # set to the lms-frontend URL once it exists
+      - key: FORCE_SSL
+        value: "true"
+      - key: SOLID_QUEUE_IN_PUMA
+        value: "true"
+      - key: ACTIVE_STORAGE_SERVICE
+        value: local
+      - key: RAILS_LOG_LEVEL
+        value: info
+
+  - type: web
+    name: lms-frontend
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: ./frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false # set to https://<lms-backend host>/api/v1, then redeploy this site
